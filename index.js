@@ -4,7 +4,6 @@ const { ethers } = require("ethers");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuração da rede Base Mainnet e contrato do USDC
 const BASE_RPC = "https://mainnet.base.org";
 const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
