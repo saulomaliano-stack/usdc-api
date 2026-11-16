@@ -1,7 +1,6 @@
 {
   "name": "usdc-api",
   "version": "1.0.0",
-  "description": "API de monitoramento USDC na Base",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
