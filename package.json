@@ -1,13 +1,10 @@
-{
-  "name": "usdc-api",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
-  "dependencies": {
-    "@google/genai": "^0.1.1",
-    "ethers": "^6.13.0",
-    "express": "^4.19.2"
-  }
+const { ethers } = require("ethers");
+
+function generateAgentWallet() {
+  const wallet = ethers.Wallet.createRandom();
+  console.log("Endereço:", wallet.address);
+  console.log("Chave Privada:", wallet.privateKey);
+  return wallet;
 }
+
+module.exports = { generateAgentWallet };
