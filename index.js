@@ -1,75 +1,45 @@
 const express = require("express");
-const { ethers } = require("ethers");
 const { GoogleGenAI } = require("@google/genai");
+const { generateAgentWallet } = require("./wallet");
 
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
+// Inicializa a IA (lembre-se de configurar a GEMINI_API_KEY nas Environment Variables do Render)
+const ai = new GoogleGenAI();
 
-// Inicializa o Gemini (Certifique-se de adicionar GEMINI_API_KEY nas variáveis de ambiente do Render)
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Gera ou carrega a carteira exclusiva do agente ao iniciar o servidor
+const agentWallet = generateAgentWallet();
 
-const BASE_RPC = "https://mainnet.base.org";
-const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-
-const USDC_ABI = [
-  "function balanceOf(address account) view returns (uint256)",
-  "function decimals() view returns (uint8)"
-];
-
+// Rota principal para testar se o servidor está online
 app.get("/", (req, res) => {
-  res.send("Agente Base USDC a funcionar!");
+  res.json({
+    status: "Agente Autônomo Online",
+    walletAddress: agentWallet.address
+  });
 });
 
-// Nova rota para testar o Gemini
-app.get("/ia", async (req, res) => {
+// Rota para conversar com o agente e dar comandos
+app.post("/agent", async (req, res) => {
   try {
-    const prompt = req.query.prompt || "Olá! Responda em uma linha.";
+    const { prompt } = req.body;
+    
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
+      model: "gemini-2.5-flash",
+      contents: `Você é um agente financeiro autônomo. O endereço da sua carteira cripto é ${agentWallet.address}. Responda ao comando do usuário de forma direta: ${prompt}`
     });
-    res.json({ resposta: response.text });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao consultar o Gemini", detalhes: error.message });
-  }
-});
-
-app.get("/wallet-status", async (req, res) => {
-  try {
-    if (!process.env.PRIVATE_KEY) {
-      return res.status(500).json({ erro: "Chave privada não configurada nas variáveis de ambiente do Render." });
-    }
-
-    const provider = new ethers.JsonRpcProvider(BASE_RPC);
-    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-
-    const ethBalanceWei = await provider.getBalance(wallet.address);
-    const ethBalance = ethers.formatEther(ethBalanceWei);
-
-    const usdcContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, provider);
-    const usdcBalanceRaw = await usdcContract.balanceOf(wallet.address);
-    const usdcDecimals = await usdcContract.decimals();
-    const usdcBalance = ethers.formatUnits(usdcBalanceRaw, usdcDecimals);
 
     res.json({
-      status: "Online",
-      network: "Base Mainnet",
-      walletAddress: wallet.address,
-      balances: {
-        ETH: ethBalance + " ETH",
-        USDC: usdcBalance + " USDC"
-      }
+      reply: response.text,
+      wallet: agentWallet.address
     });
-
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ erro: "Erro ao consultar a blockchain", detalhes: error.message });
+    console.error("Erro no agente:", error);
+    res.status(500).json({ error: "Falha ao processar comando do agente." });
   }
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Servidor a correr na porta ${PORT}`);
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
