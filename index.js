@@ -5,13 +5,9 @@ const { generateAgentWallet } = require("./wallet");
 const app = express();
 app.use(express.json());
 
-// Inicializa a IA (lembre-se de configurar a GEMINI_API_KEY nas Environment Variables do Render)
 const ai = new GoogleGenAI();
-
-// Gera ou carrega a carteira exclusiva do agente ao iniciar o servidor
 const agentWallet = generateAgentWallet();
 
-// Rota principal para testar se o servidor está online
 app.get("/", (req, res) => {
   res.json({
     status: "Agente Autônomo Online",
@@ -19,7 +15,6 @@ app.get("/", (req, res) => {
   });
 });
 
-// Rota para conversar com o agente e dar comandos
 app.post("/agent", async (req, res) => {
   try {
     const { prompt } = req.body;
