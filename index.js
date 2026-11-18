@@ -1,72 +1,61 @@
 const express = require("express");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 const { ethers } = require("ethers");
 
 const app = express();
 app.use(express.json());
 
-// Inicializa o Gemini
-const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const ai = new GoogleGenAI();
 
-// Configura o provedor da rede e a carteira do agente
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+// Configurações da Blockchain (Base Network)
+const RPC_URL = "https://mainnet.base.org";
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+// Usa a chave privada configurada no Render
 const agentWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
-// Endereço de destino fixo para onde os fundos serão direcionados
-const TARGET_WALLET = "0xSeuEnderecoDeDestinoAqui";
+// Endereço que vai receber os fundos
+const TARGET_WALLET = "0x8744B447Ba73b988a4596588764b7876387589F2";
+
+// Loop automático: checa o saldo a cada 60 segundos
+setInterval(async () => {
+  try {
+    const balanceWei = await provider.getBalance(agentWallet.address);
+    const balanceEth = parseFloat(ethers.formatEther(balanceWei));
+    
+    console.log(`Saldo atual: ${balanceEth} ETH`);
+
+    // Define o limite mínimo para disparar a transferência (ex: acima de 0.01 ETH)
+    if (balanceEth > 0.01) {
+      console.head("Saldo excedido. Iniciando transferência...");
+      
+      // Calcula o valor a enviar (deixando uma pequena margem para a taxa de gás)
+      const gasEstimate = 21000n; // Limite padrão para transferência simples de ETH
+      const feeData = await provider.getFeeData();
+      const maxFeePerGas = feeData.maxFeePerGas || ethers.parseUnits("0.05", "gwei");
+      const totalGasCost = gasEstimate * maxFeePerGas;
+
+      const amountToSend = balanceWei - totalGasCost;
+
+      if (amountToSend > 0n) {
+        const tx = await agentWallet.sendTransaction({
+          to: TARGET_WALLET,
+          value: amountToSend
+        });
+        console.log("Transação enviada com sucesso! Hash:", tx.hash);
+        await tx.wait();
+        console.log("Transferência confirmada na rede.");
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao processar o ciclo de transferência:", error.message);
+  }
+}, 60000); // 60000 ms = 1 minuto
 
 app.get("/", (req, res) => {
-  res.json({
-    status: "Agente Autônomo de Transações Online",
-    agentAddress: agentWallet.address,
-    targetAddress: TARGET_WALLET
-  });
-});
-
-app.post("/agent-loop", async (req, res) => {
-  try {
-    const { prompt, amount } = req.body;
-
-    // 1. A IA analisa o contexto e decide se aprova o envio
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const instruction = `Analise a solicitação: "${prompt}". Responda APENAS com "APROVADO" se a condição for válida para liberar o pagamento, ou "NEGADO" caso contrário.`;
-    
-    const result = await model.generateContent(instruction);
-    const decision = result.response.text().trim().toUpperCase();
-
-    if (decision !== "APROVADO") {
-      return res.json({
-        status: "Transação não executada",
-        decision,
-        reason: "Condição não aprovada pela IA."
-      });
-    }
-
-    // 2. Se aprovado, executa a transação na blockchain
-    const tx = await agentWallet.sendTransaction({
-      to: TARGET_WALLET,
-      value: ethers.parseEther(amount || "0.001") // Valor padrão caso não seja enviado
-    });
-
-    // Aguarda a confirmação na rede
-    const receipt = await tx.wait();
-
-    // 3. Retorna o comprovante
-    res.json({
-      status: "Transação Concluída",
-      decision,
-      txHash: receipt.hash,
-      from: agentWallet.address,
-      to: TARGET_WALLET
-    });
-
-  } catch (error) {
-    console.error("Erro no loop do agente:", error);
-    res.status(500).json({ error: "Falha ao processar o ciclo", details: error.message });
-  }
+  res.send("Agente autônomo com transferência automática online!");
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Agente rodando na porta ${PORT}`);
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
