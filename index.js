@@ -1,11 +1,11 @@
 const express = require("express");
-const { GoogleGenAI } = require("@google/genai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { generateAgentWallet } = require("./wallet");
 
 const app = express();
 app.use(express.json());
 
-const ai = new GoogleGenAI();
+const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const agentWallet = generateAgentWallet();
 
 app.get("/", (req, res) => {
@@ -18,11 +18,9 @@ app.get("/", (req, res) => {
 app.post("/agent", async (req, res) => {
   try {
     const { prompt } = req.body;
-    
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `Você é um agente financeiro autônomo. O endereço da sua carteira cripto é ${agentWallet.address}. Responda ao comando do usuário de forma direta: ${prompt}`
-    });
+
+    const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const response = await model.generateContent(prompt);
 
     res.json({
       reply: response.text,
@@ -30,7 +28,7 @@ app.post("/agent", async (req, res) => {
     });
   } catch (error) {
     console.error("Erro no agente:", error);
-    res.status(500).json({ error: "Falha ao processar comando do agente." });
+    res.status(500).json({ error: "Falha ao processar a requisição" });
   }
 });
 
