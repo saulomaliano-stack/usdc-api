@@ -28,7 +28,7 @@ app.post("/agent-loop", async (req, res) => {
     const { prompt, amount } = req.body;
 
     // 1. A IA analisa o contexto e decide se aprova o envio
-    const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
     const instruction = `Analise a solicitação: "${prompt}". Responda APENAS com "APROVADO" se a condição for válida para liberar o pagamento, ou "NEGADO" caso contrário.`;
     
     const result = await model.generateContent(instruction);
